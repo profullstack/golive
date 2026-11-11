@@ -61,6 +61,15 @@ function runOptions(args) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+function alive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error.code === "EPERM";
+  }
+}
+
 export async function main(argv = process.argv.slice(2)) {
   const args = parseArgs(argv);
   const command = args._[0];
@@ -88,6 +97,12 @@ export async function main(argv = process.argv.slice(2)) {
 
   if (command === "start") {
     const opts = runOptions(args);
+    // The same link already on the air (a hook that fired twice): say where, do not air it twice.
+    const already = listStates().find((one) => one.url === opts.url && ["starting", "live"].includes(one.status) && alive(one.pid));
+    if (already) {
+      console.log(`golive ${already.id} is already ${already.status} with that link\n${summary(already)}`);
+      return 0;
+    }
     const id = opts.id ?? newId();
     mkdirSync(stateDir(), { recursive: true, mode: 0o700 });
     const logFile = join(stateDir(), `${id}.log`);
