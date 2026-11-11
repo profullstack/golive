@@ -123,7 +123,8 @@ async function decode(ffmpeg, source, live, signal, onFrame) {
   return { code: await closed, stderr: stderr.trim().split("\n").pop() ?? "" };
 }
 
-async function reachable(url) {
+/** Does the link answer 200 right now? (A live feed that has ended answers 404 or nothing.) */
+export async function reachable(url) {
   try {
     const response = await fetch(url, { method: "GET", signal: AbortSignal.timeout(10_000) });
     await response.body?.cancel();

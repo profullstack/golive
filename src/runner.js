@@ -146,7 +146,18 @@ export async function run(config, opts, { env = process.env, log = console.log, 
         .finally(() => clearInterval(beat)),
     );
   }
-  if (state.nixamp) {
+  if (state.nixamp && opts.live) {
+    // A live feed: nixamp keeps redialling one that stopped, so the end is the
+    // feed itself going away (twice in a row, to ride out a blip).
+    holds.push((async () => {
+      let gone = 0;
+      while (!stop.signal.aborted && gone < 2) {
+        await sleep(POLL_MS, stop.signal);
+        gone = (await pairux.reachable(opts.url)) ? 0 : gone + 1;
+      }
+      log("nixamp: the live feed ended");
+    })());
+  } else if (state.nixamp) {
     holds.push((async () => {
       // A link channel plays its outro once the media ends; that is the end.
       await sleep(POLL_MS, stop.signal);

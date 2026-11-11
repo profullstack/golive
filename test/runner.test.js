@@ -148,3 +148,35 @@ async function withFastTimers(fn) {
     globalThis.setTimeout = real;
   }
 }
+
+test("run --live: held until the feed itself goes away, then down everywhere", async () => {
+  const state = mkdtempSync(join(tmpdir(), "golive-test-"));
+  let feedChecks = 0;
+  const realFetch = globalThis.fetch;
+  // reachable() uses the global fetch: the feed answers twice, then is gone.
+  globalThis.fetch = async (url) => {
+    if (String(url).includes("live.mp3")) {
+      feedChecks += 1;
+      return new Response(feedChecks <= 2 ? "audio" : "gone", { status: feedChecks <= 2 ? 200 : 404 });
+    }
+    return realFetch(url);
+  };
+  const calls = [];
+  const fetcher = async (url, init) => {
+    const { pathname } = new URL(url);
+    calls.push(`${init?.method ?? "GET"} ${pathname}`);
+    if (pathname === "/api/links/play") return new Response(JSON.stringify({ channel: "url-live" }));
+    if (pathname === "/api/channels") return new Response(JSON.stringify({ channels: [{ id: "url-live", live: true }] }));
+    return new Response(JSON.stringify({ ok: true, room: { id: "r" }, page: "p", event: { id: "e", slug: "s", version: 1, status: "live" } }));
+  };
+  try {
+    const e = env({ GOLIVE_STATE: state });
+    const result = await withFastTimers(() => run(loadConfig(e), { id: "t3", url: "https://gc.test/api/v1/broadcast/live.mp3", title: "Off The Record live", live: true }, { env: e, log: () => {}, fetcher }));
+    assert.equal(result.status, "ended");
+    assert.ok(feedChecks >= 4, `feed checked ${feedChecks} times`);
+    assert.ok(calls.includes("DELETE /api/channels/url-live"));
+  } finally {
+    globalThis.fetch = realFetch;
+    rmSync(state, { recursive: true, force: true });
+  }
+});

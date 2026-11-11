@@ -1,6 +1,6 @@
 {
   "name": "@profullstack/golive",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "Put a recording or a live audio feed on the air everywhere at once: a nixamp server carries it as a live channel, live.streaming lists it as a room, backtoschool.help runs it as a live class, and PairUX streams it on a channel. One command after you publish an episode.",
   "keywords": ["podcast", "live", "streaming", "nixamp", "pairux", "livekit", "backtoschool", "go-live", "cli"],
